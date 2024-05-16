@@ -4,10 +4,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 
-	"github.com/gorilla/mux"
 	"github.com/happilymarrieddad/product-inventory-management-system/internal/api/middleware"
 	"github.com/happilymarrieddad/product-inventory-management-system/internal/api/v1/products"
+	"github.com/happilymarrieddad/product-inventory-management-system/internal/repos"
 	mock_repos "github.com/happilymarrieddad/product-inventory-management-system/internal/repos/mocks"
 	"github.com/happilymarrieddad/product-inventory-management-system/types"
 	. "github.com/onsi/ginkgo/v2"
@@ -35,12 +36,12 @@ var _ = Describe("HTTP: /v1/products", func() {
 		ctrl.Finish()
 	})
 
-	Context("/v1/products/<id> DELETE - destroy", func() {
+	Context("/v1/products GET - find", func() {
 		It("should return an error when the repo is not on the context", func() {
-			req := httptest.NewRequest("POST", "/v1/products", nil)
+			req := httptest.NewRequest("GET", "/v1/products", nil)
 			w := httptest.NewRecorder()
 
-			products.Destroy(w, req)
+			products.Find(w, req)
 
 			resp := w.Result()
 
@@ -49,59 +50,77 @@ var _ = Describe("HTTP: /v1/products", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
 		})
 
-		It("should return a url parsing error", func() {
+		It("should sanitize the err from the repo", func() {
+			err := types.NewBadRequestError("BOGUS:Products.find")
+
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, httptest.NewRequest("DELETE", "/v1/products/1", nil),
+				mockGr, httptest.NewRequest("POST", "/v1/products", nil),
 			)
 			w := httptest.NewRecorder()
 
-			products.Destroy(w, req)
+			mockProducts.EXPECT().Find(gomock.Any(), gomock.AssignableToTypeOf(&repos.ProductsFind{})).
+				Return(nil, int64(0), err).Times(1)
+
+			products.Find(w, req)
 
 			resp := w.Result()
 
 			resBts, _ := io.ReadAll(resp.Body)
-			Expect(string(resBts)).To(ContainSubstring("unable to get id from url parameters"))
+			Expect(string(resBts)).To(ContainSubstring("unable to find product"))
 			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 		})
 
 		It("should sanitize the err from the repo when an internal error", func() {
-			err := types.NewInternalServerError("BOGUS:Products.destroy")
+			err := types.NewInternalServerError("BOGUS:Products.find")
 
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, mux.SetURLVars(httptest.NewRequest("DELETE", "/v1/products/1", nil),
-					// Because of the helper function, we have to set it this way with gorilla mux
-					map[string]string{"id": "1"},
-				),
+				mockGr, httptest.NewRequest("POST", "/v1/products", nil),
 			)
 			w := httptest.NewRecorder()
 
-			mockProducts.EXPECT().Destroy(gomock.Any(), int64(1)).Return(err).Times(1)
+			mockProducts.EXPECT().Find(gomock.Any(), gomock.AssignableToTypeOf(&repos.ProductsFind{})).
+				Return(nil, int64(0), err).Times(1)
 
-			products.Destroy(w, req)
+			products.Find(w, req)
 
 			resp := w.Result()
 
 			resBts, _ := io.ReadAll(resp.Body)
-			Expect(string(resBts)).To(ContainSubstring("unable to destroy product"))
+			Expect(string(resBts)).To(ContainSubstring("unable to find product"))
 			Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
 		})
 
-		It("should successfully destroy a product", func() {
+		It("should successfully find the products", func() {
+			params := url.Values{}
+			params.Add("limit", "25")
+			params.Add("offset", "25")
+			params.Add("id", "1234")
+			params.Add("name", "1234")
+			params.Add("sku", "1234")
+
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, mux.SetURLVars(httptest.NewRequest("DELETE", "/v1/products/1", nil),
-					// Because of the helper function, we have to set it this way with gorilla mux
-					map[string]string{"id": "1"},
-				),
+				mockGr, httptest.NewRequest("GET", "/v1/products", nil),
 			)
+			req.URL.RawQuery = "/v1/products?" + params.Encode()
 			w := httptest.NewRecorder()
 
-			mockProducts.EXPECT().Destroy(gomock.Any(), int64(1)).Return(nil).Times(1)
+			mockProducts.EXPECT().Find(gomock.Any(), &repos.ProductsFind{
+				Limit: 25, Offset: 25, Names: []string{"1234"}, Skus: []string{"1234"},
+			}).Return([]*types.Product{
+				{Name: "some name", Sku: "some sku", Qty: 50},
+				{Name: "some name 2", Sku: "some sku 2", Qty: 50},
+			}, int64(2), nil).Times(1)
 
-			products.Destroy(w, req)
+			products.Find(w, req)
 
 			resp := w.Result()
 
-			Expect(resp.StatusCode).To(Equal(http.StatusNoContent))
+			bts, err := io.ReadAll(resp.Body)
+			Expect(err).To(BeNil())
+
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			Expect(string(bts)).To(ContainSubstring("some name"))
+			Expect(string(bts)).To(ContainSubstring("some name 2"))
 		})
 	})
 })

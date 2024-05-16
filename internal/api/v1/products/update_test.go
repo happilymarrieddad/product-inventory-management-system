@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/gorilla/mux"
 	"github.com/happilymarrieddad/product-inventory-management-system/internal/api/middleware"
 	"github.com/happilymarrieddad/product-inventory-management-system/internal/api/v1/products"
 	mock_repos "github.com/happilymarrieddad/product-inventory-management-system/internal/repos/mocks"
@@ -36,7 +37,7 @@ var _ = Describe("HTTP: /v1/products", func() {
 		ctrl.Finish()
 	})
 
-	Context("/v1/products POST - create", func() {
+	Context("/v1/products PUT - update", func() {
 		var body []byte
 		BeforeEach(func() {
 			var err error
@@ -47,10 +48,10 @@ var _ = Describe("HTTP: /v1/products", func() {
 		})
 
 		It("should return an error when the repo is not on the context", func() {
-			req := httptest.NewRequest("POST", "/v1/products", nil)
+			req := httptest.NewRequest("PUT", "/v1/products", nil)
 			w := httptest.NewRecorder()
 
-			products.Create(w, req)
+			products.Update(w, req)
 
 			resp := w.Result()
 
@@ -61,11 +62,14 @@ var _ = Describe("HTTP: /v1/products", func() {
 
 		It("should return an error when an invalid body is passed in", func() {
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, httptest.NewRequest("POST", "/v1/products", nil),
+				mockGr, mux.SetURLVars(httptest.NewRequest("PUT", "/v1/products/1", nil),
+					// Because of the helper function, we have to set it this way with gorilla mux
+					map[string]string{"id": "1"},
+				),
 			)
 			w := httptest.NewRecorder()
 
-			products.Create(w, req)
+			products.Update(w, req)
 
 			resp := w.Result()
 
@@ -75,64 +79,67 @@ var _ = Describe("HTTP: /v1/products", func() {
 		})
 
 		It("should sanitize the err from the repo", func() {
-			err := types.NewBadRequestError("BOGUS:Products.create")
+			err := types.NewBadRequestError("BOGUS:Products.update")
 
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, httptest.NewRequest("POST", "/v1/products", bytes.NewBuffer(body)),
+				mockGr, mux.SetURLVars(httptest.NewRequest("PUT", "/v1/products/1", bytes.NewBuffer(body)),
+					// Because of the helper function, we have to set it this way with gorilla mux
+					map[string]string{"id": "1"},
+				),
 			)
 			w := httptest.NewRecorder()
 
-			mockProducts.EXPECT().Create(gomock.Any(), types.NewProduct{
-				Name: "some name", Sku: "some sku", Qty: 50,
-			}).Return(nil, err).Times(1)
+			mockProducts.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&types.UpdateProduct{})).Return(nil, err).Times(1)
 
-			products.Create(w, req)
+			products.Update(w, req)
 
 			resp := w.Result()
 
 			resBts, _ := io.ReadAll(resp.Body)
-			Expect(string(resBts)).To(ContainSubstring("unable to create product"))
-			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
-		})
-
-		It("should sanitize the err from the repo when an internal error", func() {
-			err := types.NewInternalServerError("BOGUS:Products.create")
-
-			req := middleware.SetGlobalRepoOnContext(
-				mockGr, httptest.NewRequest("POST", "/v1/products", bytes.NewBuffer(body)),
-			)
-			w := httptest.NewRecorder()
-
-			mockProducts.EXPECT().Create(gomock.Any(), types.NewProduct{
-				Name: "some name", Sku: "some sku", Qty: 50,
-			}).Return(nil, err).Times(1)
-
-			products.Create(w, req)
-
-			resp := w.Result()
-
-			resBts, _ := io.ReadAll(resp.Body)
-			Expect(string(resBts)).To(ContainSubstring("unable to create product"))
+			Expect(string(resBts)).To(ContainSubstring("unable to update product"))
 			Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
 		})
 
-		It("should successfully create a product", func() {
+		It("should sanitize the err from the repo when an internal error", func() {
+			err := types.NewInternalServerError("BOGUS:Products.update")
+
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, httptest.NewRequest("POST", "/v1/products", bytes.NewBuffer(body)),
+				mockGr, mux.SetURLVars(httptest.NewRequest("PUT", "/v1/products/1", bytes.NewBuffer(body)),
+					// Because of the helper function, we have to set it this way with gorilla mux
+					map[string]string{"id": "1"},
+				),
 			)
 			w := httptest.NewRecorder()
 
-			mockProducts.EXPECT().Create(gomock.Any(), types.NewProduct{
-				Name: "some name", Sku: "some sku", Qty: 50,
-			}).Return(&types.Product{
-				Name: "some name", Sku: "some sku", Qty: 50,
-			}, nil).Times(1)
+			mockProducts.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&types.UpdateProduct{})).Return(nil, err).Times(1)
 
-			products.Create(w, req)
+			products.Update(w, req)
 
 			resp := w.Result()
 
-			Expect(resp.StatusCode).To(Equal(http.StatusCreated))
+			resBts, _ := io.ReadAll(resp.Body)
+			Expect(string(resBts)).To(ContainSubstring("unable to update product"))
+			Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
+		})
+
+		It("should successfully update a product", func() {
+			req := middleware.SetGlobalRepoOnContext(
+				mockGr, mux.SetURLVars(httptest.NewRequest("PUT", "/v1/products/1", bytes.NewBuffer(body)),
+					// Because of the helper function, we have to set it this way with gorilla mux
+					map[string]string{"id": "1"},
+				),
+			)
+			w := httptest.NewRecorder()
+
+			mockProducts.EXPECT().Update(gomock.Any(), gomock.AssignableToTypeOf(&types.UpdateProduct{})).Return(&types.Product{
+				Name: "some name", Sku: "some sku", Qty: 50,
+			}, nil).Times(1)
+
+			products.Update(w, req)
+
+			resp := w.Result()
+
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 	})
 })

@@ -35,12 +35,12 @@ var _ = Describe("HTTP: /v1/products", func() {
 		ctrl.Finish()
 	})
 
-	Context("/v1/products/<id> DELETE - destroy", func() {
+	Context("/v1/products/<id> GET - get", func() {
 		It("should return an error when the repo is not on the context", func() {
-			req := httptest.NewRequest("POST", "/v1/products", nil)
+			req := httptest.NewRequest("GET", "/v1/products", nil)
 			w := httptest.NewRecorder()
 
-			products.Destroy(w, req)
+			products.Get(w, req)
 
 			resp := w.Result()
 
@@ -51,11 +51,11 @@ var _ = Describe("HTTP: /v1/products", func() {
 
 		It("should return a url parsing error", func() {
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, httptest.NewRequest("DELETE", "/v1/products/1", nil),
+				mockGr, httptest.NewRequest("GET", "/v1/products/1", nil),
 			)
 			w := httptest.NewRecorder()
 
-			products.Destroy(w, req)
+			products.Get(w, req)
 
 			resp := w.Result()
 
@@ -65,43 +65,69 @@ var _ = Describe("HTTP: /v1/products", func() {
 		})
 
 		It("should sanitize the err from the repo when an internal error", func() {
-			err := types.NewInternalServerError("BOGUS:Products.destroy")
+			err := types.NewInternalServerError("BOGUS:Products.get")
 
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, mux.SetURLVars(httptest.NewRequest("DELETE", "/v1/products/1", nil),
+				mockGr, mux.SetURLVars(httptest.NewRequest("GET", "/v1/products/1", nil),
 					// Because of the helper function, we have to set it this way with gorilla mux
 					map[string]string{"id": "1"},
 				),
 			)
 			w := httptest.NewRecorder()
 
-			mockProducts.EXPECT().Destroy(gomock.Any(), int64(1)).Return(err).Times(1)
+			mockProducts.EXPECT().Get(gomock.Any(), int64(1)).Return(nil, false, err).Times(1)
 
-			products.Destroy(w, req)
+			products.Get(w, req)
 
 			resp := w.Result()
 
 			resBts, _ := io.ReadAll(resp.Body)
-			Expect(string(resBts)).To(ContainSubstring("unable to destroy product"))
+			Expect(string(resBts)).To(ContainSubstring("unable to get product"))
 			Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
 		})
 
-		It("should successfully destroy a product", func() {
+		It("should sanitize the err from the repo when no item is found", func() {
 			req := middleware.SetGlobalRepoOnContext(
-				mockGr, mux.SetURLVars(httptest.NewRequest("DELETE", "/v1/products/1", nil),
+				mockGr, mux.SetURLVars(httptest.NewRequest("GET", "/v1/products/1", nil),
 					// Because of the helper function, we have to set it this way with gorilla mux
 					map[string]string{"id": "1"},
 				),
 			)
 			w := httptest.NewRecorder()
 
-			mockProducts.EXPECT().Destroy(gomock.Any(), int64(1)).Return(nil).Times(1)
+			mockProducts.EXPECT().Get(gomock.Any(), int64(1)).Return(nil, false, nil).Times(1)
 
-			products.Destroy(w, req)
+			products.Get(w, req)
 
 			resp := w.Result()
 
-			Expect(resp.StatusCode).To(Equal(http.StatusNoContent))
+			resBts, _ := io.ReadAll(resp.Body)
+			Expect(string(resBts)).To(ContainSubstring("unable to get product"))
+			Expect(resp.StatusCode).To(Equal(http.StatusNotFound))
+		})
+
+		It("should successfully get a product", func() {
+			req := middleware.SetGlobalRepoOnContext(
+				mockGr, mux.SetURLVars(httptest.NewRequest("GET", "/v1/products/1", nil),
+					// Because of the helper function, we have to set it this way with gorilla mux
+					map[string]string{"id": "1"},
+				),
+			)
+			w := httptest.NewRecorder()
+
+			mockProducts.EXPECT().Get(gomock.Any(), int64(1)).Return(&types.Product{
+				ID: 1, Name: "some product",
+			}, true, nil).Times(1)
+
+			products.Get(w, req)
+
+			resp := w.Result()
+
+			bts, err := io.ReadAll(resp.Body)
+			Expect(err).To(BeNil())
+
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			Expect(string(bts)).To(ContainSubstring("some product"))
 		})
 	})
 })
