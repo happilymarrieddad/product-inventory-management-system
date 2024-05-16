@@ -1,0 +1,8 @@
+port: 9090
+debug: false
+db:
+  host: localhost
+  port: 5432
+  user: 
+  pass: 
+  database: product_inventory_management_system
