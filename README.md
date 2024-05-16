@@ -72,26 +72,31 @@ The API has 5 endpoints. Here are some examples of using the endpoints
 #### Create
 ```bash
 ☁  product-inventory-management-system [master] ⚡  curl -X POST -d '{"name":"nick-test-1","sku":"123532545","qty":50}' -H 'ContextType:application/json' localhost:9090/v1/products
-{"id":1,"name":"nick-test-1","sku":"123532545","qty":50,"createdAt":"2024-05-16T10:36:42.100677338-06:00","updatedAt":null}%                         ☁  product-inventory-management-system [master] ⚡  
+{"id":1,"name":"nick-test-1","sku":"123532545","qty":50,"createdAt":"2024-05-16T10:36:42.100677338-06:00","updatedAt":null}%                         
+☁  product-inventory-management-system [master] ⚡  
 ```
 
 #### Get
 ```bash
 ☁  product-inventory-management-system [master] ⚡  curl localhost:9090/v1/products/1
-{"id":1,"name":"nick-test-1","sku":"123532545","qty":50,"createdAt":"2024-05-16T04:36:42-06:00","updatedAt":null}%                                   ☁  product-inventory-management-system [master] ⚡  
+{"id":1,"name":"nick-test-1","sku":"123532545","qty":50,"createdAt":"2024-05-16T04:36:42-06:00","updatedAt":null}%                                   
+☁  product-inventory-management-system [master] ⚡  
 ```
 
 #### Find
 ```bash
 ☁  product-inventory-management-system [master] ⚡  curl localhost:9090/v1/products  
-{"data":[{"id":1,"name":"nick-test-1","sku":"123532545","qty":50,"createdAt":"2024-05-16T04:36:42-06:00","updatedAt":null}],"count":1}%              ☁  product-inventory-management-system [master] ⚡ 
+{"data":[{"id":1,"name":"nick-test-1","sku":"123532545","qty":50,"createdAt":"2024-05-16T04:36:42-06:00","updatedAt":null}],"count":1}%              
+☁  product-inventory-management-system [master] ⚡ 
 ```
 
 #### Update
 ```bash
 ☁  product-inventory-management-system [master] ⚡  curl -X PUT -d '{"name":"new-name","sku":"999","qty":25}' -H 'ContextType:application/json' localhost:9090/v1/products/1  
-{"id":1,"name":"new-name","sku":"999","qty":25,"createdAt":"2024-05-16T04:36:42-06:00","updatedAt":"2024-05-16T10:38:34.241864654-06:00"}%           ☁  product-inventory-management-system [master] ⚡  curl localhost:9090/v1/products/1
-{"id":1,"name":"new-name","sku":"999","qty":25,"createdAt":"2024-05-15T22:36:42-06:00","updatedAt":"2024-05-16T04:38:34-06:00"}%                     ☁  product-inventory-management-system [master] ⚡  
+{"id":1,"name":"new-name","sku":"999","qty":25,"createdAt":"2024-05-16T04:36:42-06:00","updatedAt":"2024-05-16T10:38:34.241864654-06:00"}%           
+☁  product-inventory-management-system [master] ⚡  curl localhost:9090/v1/products/1
+{"id":1,"name":"new-name","sku":"999","qty":25,"createdAt":"2024-05-15T22:36:42-06:00","updatedAt":"2024-05-16T04:38:34-06:00"}%                     
+☁  product-inventory-management-system [master] ⚡  
 ```
 
 #### Delete
