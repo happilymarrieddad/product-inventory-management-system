@@ -55,7 +55,7 @@ goose -allow-missing -dir db/migrations postgres "postgres://postgres:postgres@l
 ☁  product-inventory-management-system [master] ⚡  
 ```
 
-Copy the config sample file to a config file in cmd and fill it out
+Copy the config sample file to a config file in cmd and fill it out (I could have done this many ways but I felt this was the simpliest)
 ```bash
 cp cmd/config.sample.yaml cmd/config.yaml
 ```
